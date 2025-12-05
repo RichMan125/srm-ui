@@ -132,8 +132,11 @@ function getGlobalMenuByBaseRoute(route: RouteLocationNormalizedLoaded | Elegant
 
   const label = i18nKey ? $t(i18nKey) : title!;
 
+  // 确保key始终有值，使用name或path作为备选
+  const menuKey = (name as string) || (path as string);
+
   const menu: App.Global.Menu = {
-    key: name as string,
+    key: menuKey,
     label,
     i18nKey,
     routeKey: name as RouteKey,

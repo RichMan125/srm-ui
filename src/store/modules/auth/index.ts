@@ -2,7 +2,7 @@ import { computed, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { defineStore } from 'pinia';
 import { useLoading } from '@sa/hooks';
-import { fetchGetUserInfo, fetchLogin } from '@/service/api';
+import { fetchCaptcha, fetchGetUserInfo, fetchLogin } from '@/service/api';
 import { useRouterPush } from '@/hooks/common/router';
 import { localStg } from '@/utils/storage';
 import { SetupStoreId } from '@/enum';
@@ -22,8 +22,8 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
   const token = ref(getToken());
 
   const userInfo: Api.Auth.UserInfo = reactive({
-    userId: '',
-    userName: '',
+    id: '',
+    username: '',
     roles: [],
     buttons: []
   });
@@ -41,7 +41,6 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
   /** Reset auth store */
   async function resetStore() {
     recordUserId();
-
     clearAuthStorage();
 
     authStore.$reset();
@@ -56,12 +55,12 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
 
   /** Record the user ID of the previous login session Used to compare with the current user ID on next login */
   function recordUserId() {
-    if (!userInfo.userId) {
+    if (!userInfo.id) {
       return;
     }
 
     // Store current user ID locally for next login comparison
-    localStg.set('lastLoginUserId', userInfo.userId);
+    localStg.set('lastLoginUserId', userInfo.id);
   }
 
   /**
@@ -70,14 +69,14 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    * @returns {boolean} Whether to clear all tabs
    */
   function checkTabClear(): boolean {
-    if (!userInfo.userId) {
+    if (!userInfo.id) {
       return false;
     }
 
     const lastLoginUserId = localStg.get('lastLoginUserId');
 
     // Clear all tabs if current user is different from previous user
-    if (!lastLoginUserId || lastLoginUserId !== userInfo.userId) {
+    if (!lastLoginUserId || lastLoginUserId !== userInfo.id) {
       localStg.remove('globalTabs');
       tabStore.clearTabs();
 
@@ -94,51 +93,60 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    *
    * @param userName User name
    * @param password Password
+   * @param captcha Captcha
    * @param [redirect=true] Whether to redirect after login. Default is `true`
    */
-  async function login(userName: string, password: string, redirect = true) {
+  async function login(loginForm: any, redirect = true) {
     startLoading();
 
-    const { data: loginToken, error } = await fetchLogin(userName, password);
-
-    if (!error) {
-      const pass = await loginByToken(loginToken);
-
-      if (pass) {
-        // Check if the tab needs to be cleared
-        const isClear = checkTabClear();
-        let needRedirect = redirect;
-
-        if (isClear) {
-          // If the tab needs to be cleared,it means we don't need to redirect.
-          needRedirect = false;
-        }
-        await redirectFromLogin(needRedirect);
-
-        window.$notification?.success({
-          title: $t('page.login.common.loginSuccess'),
-          content: $t('page.login.common.welcomeBack', { userName: userInfo.userName }),
-          duration: 4500
-        });
+    const { data: loginToken } = await fetchLogin(loginForm);
+    const { status, reason } = loginToken as any;
+    if (status === 'error') {
+      let content;
+      if (reason === 'CaptchaException') {
+        content = '验证码错误!';
+      } else {
+        content = '账号或密码错误!';
       }
-    } else {
+      window.$notification?.error({
+        title: $t('common.error'),
+        content,
+        duration: 4500
+      });
       resetStore();
+      return;
+    }
+
+    const pass = await loginByToken(loginToken as Api.Auth.LoginToken);
+
+    if (pass) {
+      // Check if the tab needs to be cleared
+      const isClear = checkTabClear();
+      let needRedirect = redirect;
+
+      if (isClear) {
+        // If the tab needs to be cleared,it means we don't need to redirect.
+        needRedirect = false;
+      }
+      await redirectFromLogin(needRedirect);
+
+      window.$notification?.success({
+        title: $t('page.login.common.loginSuccess'),
+        content: $t('page.login.common.welcomeBack', { userName: userInfo.username }),
+        duration: 4500
+      });
     }
 
     endLoading();
   }
 
   async function loginByToken(loginToken: Api.Auth.LoginToken) {
-    // 1. stored in the localStorage, the later requests need it in headers
-    localStg.set('token', loginToken.token);
-    localStg.set('refreshToken', loginToken.refreshToken);
-
+    localStg.set('token', `sessionKey=${loginToken.sessionKey}`);
     // 2. get user info
     const pass = await getUserInfo();
 
     if (pass) {
-      token.value = loginToken.token;
-
+      token.value = loginToken.sessionKey;
       return true;
     }
 
@@ -170,6 +178,17 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     }
   }
 
+  /**
+   * Get captcha image
+   */
+  async function getCaptcha() {
+    const { response }: any = await fetchCaptcha();
+    if (response && response.data) {
+      return URL.createObjectURL(response.data);
+    }
+    return '';
+  }
+
   return {
     token,
     userInfo,
@@ -178,6 +197,7 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     loginLoading,
     resetStore,
     login,
-    initUserInfo
+    initUserInfo,
+    getCaptcha
   };
 });

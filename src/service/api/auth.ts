@@ -6,20 +6,22 @@ import { request } from '../request';
  * @param userName User name
  * @param password Password
  */
-export function fetchLogin(userName: string, password: string) {
+export function fetchLogin(loginForm: any) {
+  const formData = new FormData();
+  formData.append('username', loginForm.userName);
+  formData.append('password', loginForm.password);
+  formData.append('bussionDate', loginForm.bussionDate);
+  formData.append('captcha', loginForm.captcha);
   return request<Api.Auth.LoginToken>({
-    url: '/auth/login',
+    url: '/accountLogin',
     method: 'post',
-    data: {
-      userName,
-      password
-    }
+    data: formData
   });
 }
 
 /** Get user info */
 export function fetchGetUserInfo() {
-  return request<Api.Auth.UserInfo>({ url: '/auth/getUserInfo' });
+  return request<Api.Auth.UserInfo>({ url: 'getUserInfo' });
 }
 
 /**
@@ -46,3 +48,18 @@ export function fetchRefreshToken(refreshToken: string) {
 export function fetchCustomBackendError(code: string, msg: string) {
   return request({ url: '/auth/error', params: { code, msg } });
 }
+
+export function fetchCaptcha() {
+  return request<Blob>({
+    url: '/captcha?type=1',
+    method: 'GET',
+    responseType: 'blob' as any
+  });
+}
+
+// export async function accountLogout() {
+//   return request({
+//     url: '/logout',
+//     method: 'post'
+//   });
+// }

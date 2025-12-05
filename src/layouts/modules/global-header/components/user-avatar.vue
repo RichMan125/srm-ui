@@ -49,7 +49,8 @@ function logout() {
     content: $t('common.logoutConfirm'),
     positiveText: $t('common.confirm'),
     negativeText: $t('common.cancel'),
-    onPositiveClick: () => {
+    onPositiveClick: async () => {
+      await routerPushByKey('login');
       authStore.resetStore();
     }
   });
@@ -73,7 +74,7 @@ function handleDropdown(key: DropdownKey) {
     <div>
       <ButtonIcon>
         <SvgIcon icon="ph:user-circle" class="text-icon-large" />
-        <span class="text-16px font-medium">{{ authStore.userInfo.userName }}</span>
+        <span class="text-16px font-medium">{{ authStore.userInfo.username }}</span>
       </ButtonIcon>
     </div>
   </NDropdown>

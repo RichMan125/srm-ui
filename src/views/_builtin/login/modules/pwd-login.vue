@@ -1,9 +1,8 @@
-<script setup lang="ts">
-import { computed, reactive } from 'vue';
-import { loginModuleRecord } from '@/constants/app';
+<script setup lang="tsx">
+import { computed, onMounted, reactive, ref } from 'vue';
+import dayjs from 'dayjs';
 import { useAuthStore } from '@/store/modules/auth';
-import { useRouterPush } from '@/hooks/common/router';
-import { useFormRules, useNaiveForm } from '@/hooks/common/form';
+import { useNaiveForm } from '@/hooks/common/form';
 import { $t } from '@/locales';
 
 defineOptions({
@@ -11,67 +10,44 @@ defineOptions({
 });
 
 const authStore = useAuthStore();
-const { toggleLoginModule } = useRouterPush();
 const { formRef, validate } = useNaiveForm();
+const captchaImgSrc = ref<string>('');
 
 interface FormModel {
   userName: string;
   password: string;
+  bussionDate: string;
+  captcha: string;
 }
 
 const model: FormModel = reactive({
-  userName: 'Soybean',
-  password: '123456'
+  userName: '',
+  password: '',
+  bussionDate: dayjs().format('YYYY-MM-DD'),
+  captcha: ''
 });
 
 const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
-  // inside computed to make locale reactive, if not apply i18n, you can define it without computed
-  const { formRules } = useFormRules();
-
   return {
-    userName: formRules.userName,
-    password: formRules.pwd
+    userName: [{ required: true, message: '请输入用户名', trigger: ['blur'] }],
+    password: [{ required: true, message: '请输入密码', trigger: ['blur'] }],
+    bussionDate: [{ required: true, message: '请选择日期', trigger: ['blur'] }],
+    captcha: [{ required: true, message: '请输入验证码', trigger: ['blur'] }]
   };
 });
 
 async function handleSubmit() {
   await validate();
-  await authStore.login(model.userName, model.password);
+  await authStore.login({ ...model });
 }
 
-type AccountKey = 'super' | 'admin' | 'user';
-
-interface Account {
-  key: AccountKey;
-  label: string;
-  userName: string;
-  password: string;
+async function handleCaptcha() {
+  captchaImgSrc.value = await authStore.getCaptcha();
 }
 
-const accounts = computed<Account[]>(() => [
-  {
-    key: 'super',
-    label: $t('page.login.pwdLogin.superAdmin'),
-    userName: 'Super',
-    password: '123456'
-  },
-  {
-    key: 'admin',
-    label: $t('page.login.pwdLogin.admin'),
-    userName: 'Admin',
-    password: '123456'
-  },
-  {
-    key: 'user',
-    label: $t('page.login.pwdLogin.user'),
-    userName: 'User',
-    password: '123456'
-  }
-]);
-
-async function handleAccountLogin(account: Account) {
-  await authStore.login(account.userName, account.password);
-}
+onMounted(() => {
+  handleCaptcha();
+});
 </script>
 
 <template>
@@ -87,30 +63,29 @@ async function handleAccountLogin(account: Account) {
         :placeholder="$t('page.login.common.passwordPlaceholder')"
       />
     </NFormItem>
+    <NFormItem path="bussionDate">
+      <NDatePicker
+        v-model:formatted-value="model.bussionDate"
+        format="yyyy-MM-dd"
+        class="w-full"
+        type="date"
+        input-readonly
+        placeholder="请选择业务日期"
+      />
+    </NFormItem>
+    <NFormItem path="captcha">
+      <NInput v-model:value="model.captcha" class="w-full" placeholder="请输入验证码" />
+      <NImage
+        :src="captchaImgSrc"
+        :preview-disabled="true"
+        class="ml-10px h-40px w-120px cursor-pointer border-1px rounded-6px"
+        @click="handleCaptcha"
+      />
+    </NFormItem>
     <NSpace vertical :size="24">
-      <div class="flex-y-center justify-between">
-        <NCheckbox>{{ $t('page.login.pwdLogin.rememberMe') }}</NCheckbox>
-        <NButton quaternary @click="toggleLoginModule('reset-pwd')">
-          {{ $t('page.login.pwdLogin.forgetPassword') }}
-        </NButton>
-      </div>
       <NButton type="primary" size="large" round block :loading="authStore.loginLoading" @click="handleSubmit">
         {{ $t('common.confirm') }}
       </NButton>
-      <div class="flex-y-center justify-between gap-12px">
-        <NButton class="flex-1" block @click="toggleLoginModule('code-login')">
-          {{ $t(loginModuleRecord['code-login']) }}
-        </NButton>
-        <NButton class="flex-1" block @click="toggleLoginModule('register')">
-          {{ $t(loginModuleRecord.register) }}
-        </NButton>
-      </div>
-      <NDivider class="text-14px text-#666 !m-0">{{ $t('page.login.pwdLogin.otherAccountLogin') }}</NDivider>
-      <div class="flex-center gap-12px">
-        <NButton v-for="item in accounts" :key="item.key" type="primary" @click="handleAccountLogin(item)">
-          {{ item.label }}
-        </NButton>
-      </div>
     </NSpace>
   </NForm>
 </template>

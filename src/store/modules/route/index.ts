@@ -4,7 +4,7 @@ import { defineStore } from 'pinia';
 import { useBoolean } from '@sa/hooks';
 import type { CustomRoute, ElegantConstRoute, LastLevelRouteKey, RouteKey, RouteMap } from '@elegant-router/types';
 import { router } from '@/router';
-import { fetchGetConstantRoutes, fetchGetUserRoutes, fetchIsRouteExist } from '@/service/api';
+import { fetchGetUserRoutes, fetchIsRouteExist } from '@/service/api';
 import { SetupStoreId } from '@/enum';
 import { createStaticRoutes, getAuthVueRoutes } from '@/router/routes';
 import { ROOT_ROUTE } from '@/router/routes/builtin';
@@ -22,6 +22,7 @@ import {
   transformMenuToSearchMenus,
   updateLocaleOfGlobalMenus
 } from './shared';
+import MenuRoute = Api.Route.MenuRoute;
 
 export const useRouteStore = defineStore(SetupStoreId.Route, () => {
   const authStore = useAuthStore();
@@ -157,14 +158,8 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     if (authRouteMode.value === 'static') {
       addConstantRoutes(staticRoute.constantRoutes);
     } else {
-      const { data, error } = await fetchGetConstantRoutes();
-
-      if (!error) {
-        addConstantRoutes(data);
-      } else {
-        // if fetch constant routes failed, use static constant routes
-        addConstantRoutes(staticRoute.constantRoutes);
-      }
+      // if fetch constant routes failed, use static constant routes
+      addConstantRoutes(staticRoute.constantRoutes);
     }
 
     handleConstantAndAuthRoutes();
@@ -177,7 +172,7 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
   /** Init auth route */
   async function initAuthRoute() {
     // check if user info is initialized
-    if (!authStore.userInfo.userId) {
+    if (!authStore.userInfo.id) {
       await authStore.initUserInfo();
     }
 
@@ -210,23 +205,66 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
   /** Init dynamic auth route */
   async function initDynamicAuthRoute() {
     const { data, error } = await fetchGetUserRoutes();
-
     if (!error) {
-      const { routes, home } = data;
+      const routes = [] as MenuRoute[];
+      routes.push({
+        id: 'home',
+        name: 'home',
+        path: '/home',
+        component: 'layout.base$view.home',
+        meta: {
+          title: '首页',
+          i18nKey: 'route.home',
+          icon: 'mdi:monitor-dashboard',
+          order: 1
+        },
+        children: []
+      });
+      data.forEach((item: any) => {
+        routes.push(transformMenuToRoute(item));
+      });
 
       addAuthRoutes(routes);
 
       handleConstantAndAuthRoutes();
 
-      setRouteHome(home);
+      setRouteHome('home');
 
-      handleUpdateRootRouteRedirect(home);
+      handleUpdateRootRouteRedirect('home');
 
       setIsInitAuthRoute(true);
     } else {
       // if fetch user routes failed, reset store
       authStore.resetStore();
     }
+  }
+
+  // 递归处理多层 children
+  function transformMenuToRoute(menu: any): MenuRoute {
+    const children = menu.children?.map((child: any) => transformMenuToRoute(child));
+    return {
+      id: menu.id,
+      name: menu.menuCode,
+      path: menu.menuUrl?.startsWith('/') ? menu.menuUrl : `/${menu.menuUrl}`,
+      component: transformMenuComponent(menu),
+      meta: {
+        title: menu.title,
+        icon: menu.menuIcon || import.meta.env.VITE_MENU_ICON,
+        order: menu?.treeOrder ? menu.treeOrder : 1,
+        hideInMenu: false
+      },
+      children: children || []
+    };
+  }
+
+  function transformMenuComponent(menu: any): string {
+    if (menu?.type === 'group') {
+      return 'layout.base';
+    }
+    if (menu?.parentId === 'ROOT') {
+      return `layout.base$view.${menu?.menuCode}`;
+    }
+    return `view.${menu?.menuCode}`;
   }
 
   /** handle constant and auth routes */

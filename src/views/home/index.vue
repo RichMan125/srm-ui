@@ -1,46 +1,19 @@
-<script setup lang="ts">
-import { computed } from 'vue';
-import { useAppStore } from '@/store/modules/app';
-import HeaderBanner from './modules/header-banner.vue';
-import CardData from './modules/card-data.vue';
-import LineChart from './modules/line-chart.vue';
-import PieChart from './modules/pie-chart.vue';
-import ProjectNews from './modules/project-news.vue';
-import CreativityBanner from './modules/creativity-banner.vue';
+<script setup lang="tsx">
+import { onMounted } from 'vue';
 
-const appStore = useAppStore();
-
-const gap = computed(() => (appStore.isMobile ? 0 : 16));
+onMounted(async () => {});
 </script>
 
 <template>
-  <NSpace vertical :size="16">
-    <NAlert :title="$t('common.tip')" type="warning">
-      {{ $t('page.home.branchDesc') }}
-    </NAlert>
-    <HeaderBanner />
-    <CardData />
-    <NGrid :x-gap="gap" :y-gap="16" responsive="screen" item-responsive>
-      <NGi span="24 s:24 m:14">
-        <NCard :bordered="false" class="card-wrapper">
-          <LineChart />
-        </NCard>
+  <div>
+    <NGrid class="mt-100px w-full text-center">
+      <NGi span="24">
+        <icon-local-home class="h300px w-300px color-[#FF7A45] opacity-50" />
       </NGi>
-      <NGi span="24 s:24 m:10">
-        <NCard :bordered="false" class="card-wrapper">
-          <PieChart />
-        </NCard>
-      </NGi>
+      <NGi span="24" class="font-weight-600 font-size-33px opacity-50">供应商管理系统</NGi>
+      <NGi span="24" class="font-size-25px opacity-50">Supply Chain Management</NGi>
     </NGrid>
-    <NGrid :x-gap="gap" :y-gap="16" responsive="screen" item-responsive>
-      <NGi span="24 s:24 m:14">
-        <ProjectNews />
-      </NGi>
-      <NGi span="24 s:24 m:10">
-        <CreativityBanner />
-      </NGi>
-    </NGrid>
-  </NSpace>
+  </div>
 </template>
 
 <style scoped></style>

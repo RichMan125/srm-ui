@@ -24,7 +24,7 @@ export function setupLoading() {
     'right-0 bottom-0 animate-delay-1500'
   ];
 
-  const logoWithClass = systemLogo.replace('<svg', `<svg class="size-128px text-primary"`);
+  const logoWithClass = systemLogo.replace('<svg', `<svg class="size-180px text-primary"`);
 
   const dot = loadingClasses
     .map(item => {
