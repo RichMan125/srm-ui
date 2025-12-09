@@ -76,8 +76,8 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
   const watermarkContent = computed(() => {
     const { watermark } = settings.value;
 
-    if (watermark.enableUserName && authStore.userInfo.username) {
-      return authStore.userInfo.username;
+    if (watermark.enableUserName && authStore.userInfo.realname) {
+      return authStore.userInfo.realname;
     }
 
     if (watermark.enableTime) {
